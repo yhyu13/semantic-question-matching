@@ -5,7 +5,7 @@
 ### Preprocessing
 - Read ~~Quora Dataset~~ / PPDB
 - ~~Tokenize (NLTK) + lower case~~.
-- Remove/replace punctuation, symbols, urls, digits, snippets, formulas..? stopwords? non-ASCII characters? rare words?
+- Remove/replace ~~punctuation~~, symbols, urls, digits, snippets, formulas..? stopwords? non-ASCII characters? rare words?
 - Porter Stemming?
 
 ### Statistical and NLP Features
