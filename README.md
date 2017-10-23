@@ -3,17 +3,18 @@
 ## TODO
 
 ### Preprocessing
-- Read Quora Dataset or PPDB
-- Clean sentences (NLTK tokenizer + lower case). punctuation, symbols, urls, digits, snippets, formulas.. ? stopwords ? non-ASCII characters?
+- Read ~~Quora Dataset~~ / PPDB
+- ~~Tokenize (NLTK) + lower case~~.
+- Remove/replace punctuation, symbols, urls, digits, snippets, formulas..? stopwords? non-ASCII characters? rare words?
 - Porter Stemming?
 
 ### Statistical and NLP Features
-- Word Embeddings: Glove 300D init_. Words not contained in GloVe?
-- Word probabilitie0s? (Who, What, Where, When, How, Why + Does, Can, Should...)
+- ~~Word Embeddings: Glove 300D init_. Words not contained in GloVe?~~
+- Word probabilities? (Who, What, Where, When, How, Why + Does, Can, Should...)
 - Word that appear only once? (spelling errors or too specific)
 
 ### Baselines
-- WMD
+- ~~WMD~~
 - Weighted (TF-IDF, BM25, SIF) sum of word Embedding (+ cosine, euclidean_dist or clf). Remove 1st principal component (PCA).
 - Other BOW model (like FastSent)
 - Random Forest with ft engineering (lexical word overlap, Jaccard, BM25 score...)
