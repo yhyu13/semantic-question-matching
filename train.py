@@ -8,6 +8,23 @@ from config import get_config, print_config
 from data_loader import Data_loader
 from nnet import Model
 
+
+###################### CHECK formula: objective = self.loss + self.kld      w/ self.loss =... and self.kld =...
+########### ANNEAL kld weight
+
+########### Alternate encoder / decoder training
+########### Unknown words (***)
+########### Freeze W2V embeddings
+
+########### W2V / Sent dimensions (50, 100, 200, 300)
+########### VarAutoEnc (reformulate_proba=0) to VarAutoDec (reformulate_proba=1)
+
+###################### USE DYNAMIC RNN DECODER WITH LEN2-1
+###################### Use Xs, Ys AND Xa, Ya !!! (self.y = [batch size,] = +-1)
+
+
+
+
 # Get running configuration
 config, _ = get_config()
 print_config()
@@ -18,13 +35,14 @@ tf.set_random_seed(0)
 
 # Init data_loader
 data_loader = Data_loader()
-weights, word2idx, idx2word = data_loader.load_w2v()
-Xs_ids, Ys_ids, Xa_ids, Ya_ids = data_loader.corpus2ids()
+weights, word2idx, idx2word = data_loader.load_w2v(w2v_size=config.w2v_size)
+Xs_ids, Ys_ids, Xa_ids, Ya_ids = data_loader.corpus2ids(w2v_size=config.w2v_size)
 
 # Build tensorflow graph from config
 print("Building graph...")
-tf.reset_default_graph()
+#tf.reset_default_graph()
 model = Model(embedding_weights=weights, config=config)
+
 
 # Saver to save & restore all the variables.
 variables_to_save = [v for v in tf.global_variables() if 'Adam' not in v.name]
@@ -57,14 +75,12 @@ with tf.Session() as sess:
         batches = data_loader.create_batches(len(Xs_ids), batch_size=config.batch_size)
 
         # train
-        for switch in range(0, 2):
-            if switch == 0:
-                optim = model.optim_dec
-                print('updating decoder')
-            else:
-                optim = model.optim_enc
-                print('updating encoder')
+        if config.alternate_encdec == False:
+            switchs = [model.optim]
+        else:
+            switchs = [model.optim_dec, model.optim_enc] # alternate encoder / decoder training
 
+        for optim in switchs: 
             # train
             for i, idx_batch in tqdm(enumerate(batches)):
                 # fetch duplicate questions
@@ -72,11 +88,15 @@ with tf.Session() as sess:
 
                 # choose i and f iid in {0,1}. random task: qi -> qf or qf -> qi.
                 r1, r2 = np.random.rand(1), np.random.rand(1) # two iid rrv
+
+                # REFORMULATE
                 if r1 < config.reformulate_proba: # reformulate q1 -> q2
                     if r2<0.5:
                         feed = {model.q1: input_batch, model.len1: input_length, model.q2: output_batch, model.len2: output_length}
                     else:
                         feed = {model.q1: output_batch, model.len1: output_length, model.q2: input_batch, model.len2: input_length}
+
+                # REPEAT
                 else: # repeat q1 -> q2
                     if r2<0.5:
                         feed = {model.q1: input_batch, model.len1: input_length, model.q2: input_batch, model.len2: input_length}
@@ -84,10 +104,11 @@ with tf.Session() as sess:
                         feed = {model.q1: output_batch, model.len1: output_length, model.q2: output_batch, model.len2: output_length}
 
                 # Forward pass & train step
-                _, loss_, kld_, summary = sess.run([optim, model.loss, model.kld, model.merged], feed_dict=feed)
+                _, loss_, mu_, sigma_, kld_, lb_, summary, global_step_ = sess.run([optim, model.loss, model.mu, model.sigma, model.kld, model.lb, model.merged, model.global_step], feed_dict=feed)
+
                 if i%100 == 0:
-                    print(loss_,kld_)
-                    writer.add_summary(summary,i+(epoch+switch)*num_batch_per_epoch)
+                    print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_)
+                    writer.add_summary(summary, global_step_)
 
         # Save the variables to disk
         if epoch % max(1,int(config.training_epochs/5)) == 0 and i!=0 :

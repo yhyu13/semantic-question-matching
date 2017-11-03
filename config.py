@@ -23,16 +23,23 @@ data_arg.add_argument('--padlen', type=int, default=20, help='input sequence len
 
 # Network
 net_arg = add_argument_group('Network')
-net_arg.add_argument('--hidden_size', type=int, default=50, help='hidden dimension')
+net_arg.add_argument('--w2v_size', type=int, default=300, help='w2v dimension')
+net_arg.add_argument('--hidden_size', type=int, default=300, help='hidden dimension')
 
 # Training / test parameters
 train_arg = add_argument_group('Training')
-train_arg.add_argument('--training_epochs', type=int, default=10, help='nb epoch')
-train_arg.add_argument('--lr_start', type=float, default=0.001, help='actor learning rate')
+train_arg.add_argument('--training_epochs', type=int, default=2, help='nb epoch')
+train_arg.add_argument('--alternate_encdec', type=str2bool, default=False, help='alternate encoder decoder training')
+
+train_arg.add_argument('--lr_start', type=float, default=0.001, help='learning rate')
 train_arg.add_argument('--lr_decay_step', type=int, default=5000, help='lr1 decay step')
 train_arg.add_argument('--lr_decay_rate', type=float, default=0.96, help='lr1 decay rate')
 
-train_arg.add_argument('--reformulate_proba', type=float, default=0.5, help='probability of reformulating. if 0, model = simple autoencoder')
+train_arg.add_argument('--lb_decay_step', type=int, default=5000, help='kld annealing step')
+train_arg.add_argument('--lb_decay_rate', type=float, default=0.96, help='kld annealing rate')
+
+train_arg.add_argument('--reformulate_proba', type=float, default=0., help='probability of reformulating. if 0, model = simple autoencoder')
+train_arg.add_argument('--freeze_w2v', type=str2bool, default=True, help='freeze word embeddings')
 train_arg.add_argument('--n_sample', type=int, default=1, help='number of samples per instance')
 
 # Misc
@@ -41,9 +48,9 @@ misc_arg = add_argument_group('User options') ##################################
 train_arg.add_argument('--is_training', type=str2bool, default=True, help='switch to inference mode when model is trained')
 misc_arg.add_argument('--restore_model', type=str2bool, default=False, help='whether or not model is retrieved')
 
-misc_arg.add_argument('--save_to', type=str, default='autoencoder', help='saver sub directory')
+misc_arg.add_argument('--save_to', type=str, default='vae', help='saver sub directory')
 misc_arg.add_argument('--restore_from', type=str, default='autoencoder', help='loader sub directory')
-misc_arg.add_argument('--log_dir', type=str, default='autoencoder', help='summary writer log directory') 
+misc_arg.add_argument('--log_dir', type=str, default='vae', help='summary writer log directory') 
 
 
 
@@ -62,11 +69,16 @@ def print_config():
   print('Network Config:')
   print('* Restored model:',config.restore_model)
   print('* Hidden dimension:',config.hidden_size)
+  print('* W2V dimension:',config.w2v_size,'(Freezed =',config.freeze_w2v,')')
   print('\n')
   if config.is_training==True:
     print('Training Config:')
     print('* Nb epoch:',config.training_epochs)
-    print('* Learning rate (init,decay_step,decay_rate):',config.lr_start,config.lr_decay_step,config.lr_decay_rate)
+    print('* Alternate training:',config.alternate_encdec)
+    print('* Learning rate (init,decay_step,decay_rate):',config.lr_start,config.lr_decay_step, config.lr_decay_rate)
+    print('* KLD cost anneal (init,decay_step,decay_rate):',1.0,config.lb_decay_step, config.lb_decay_rate)
+    print('* Reformulate probability', config.reformulate_proba)
+    print('* Nb sample:',config.n_sample)
     print('* Saving model to:',' save/'+config.save_to)
   else:
     print('Testing Config:')
