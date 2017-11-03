@@ -5,6 +5,7 @@ from gensim.models import KeyedVectors
 
 path = "word_embeddings/glove.6B/"
 
+
 def load_embeddings(embeddings_path, binary=False):
     """ Load word embeddings"""
     assert os.path.isfile(embeddings_path)
@@ -75,6 +76,7 @@ def word_index(sents, lower=False, add_unknown=True):
 
 def reverse_dict(dictionary):
     return {v: k for k, v in dictionary.items()}
+
 
 if __name__ == "__main__":
     for file in os.listdir(path):
