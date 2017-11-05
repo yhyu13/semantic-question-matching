@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tqdm import tqdm
 import os
+from data_utils import Data_iterator
 
 max_pool = tf.contrib.keras.layers.GlobalMaxPool1D()
 
@@ -19,7 +20,13 @@ class SiameseNet(object):
         return output
 
     def activation(self, x):
-        return tf.nn.sigmoid(x)
+        assert self.config.fd_activation in ["sigmoid", "relu", "tanh"]
+        if self.config.fd_activation == "sigmoid":
+            return tf.nn.sigmoid(x)
+        elif self.config.fd_activation == "relu":
+            return tf.nn.relu(x)
+        elif self.config.fd_activation == "tanh":
+            return tf.nn.tanh(x)
 
     def build(self):
         ### Placeholders
@@ -76,7 +83,7 @@ class SiameseNet(object):
             b2 = tf.Variable(tf.zeros([2]), name="b_fc")
 
             preact2 = tf.matmul(fc1, W2) + b2
-            self.fc2 = self.activation(preact2)
+            self.fc2 = preact2
 
         ### Loss
         self.cross_entropy = tf.reduce_mean(
@@ -98,32 +105,39 @@ class SiameseNet(object):
         ### Init
         self.init = tf.global_variables_initializer()
 
-        ### Summary
+        ### Summaries
         with tf.variable_scope("summaries") as scope:
+
+            # train
             tf.summary.scalar('cross_entropy', self.cross_entropy)
             tf.summary.scalar('accuracy', self.accuracy)
             self.merged = tf.summary.merge_all()
 
+            # test
+            self.acc_value = tf.placeholder_with_default(tf.constant(0.0), shape=())
+            self.ce_value = tf.placeholder_with_default(tf.constant(0.0), shape=())
+            acc_summary = tf.summary.scalar('accuracy', self.acc_value)
+            ce_summary = tf.summary.scalar('cross_entropy', self.ce_value)
+            self.merged_eval = tf.summary.merge([acc_summary, ce_summary])
+
         self.saver = tf.train.Saver()
 
     def run_epoch(self, sess, train, dev, test, epoch):
-        iterator = train.batch(self.config.batch_size).make_one_shot_iterator()
-        nbatches = (self.length_train + self.config.batch_size - 1) // self.config.batch_size
-
-        q1, q2, l1, l2, y = iterator.get_next()
+        iterator = Data_iterator(train, self.config.batch_size)
+        nbatches = (iterator.max + self.config.batch_size - 1) // self.config.batch_size
 
         for i in tqdm(range(nbatches)):
-            try:
-                fd = {self.q1: q1.eval(), self.q2: q2.eval(), self.l1: l1.eval(), self.l2: l2.eval(), self.y: y.eval(),
-                      self.dropout: self.config.dropout,
-                      self.lr: self.config.lr}
-                _, summary, acc = sess.run([self.train_step, self.merged, self.accuracy], feed_dict=fd)
+            q1, q2, l1, l2, y = iterator.__next__()
+            fd = {self.q1: q1, self.q2: q2, self.l1: l1, self.l2: l2, self.y: y,
+                  self.dropout: self.config.dropout,
+                  self.lr: self.config.lr}
+            _, summary, acc = sess.run([self.train_step, self.merged, self.accuracy], feed_dict=fd)
 
-                # tensorboard
-                if i % 10 == 0:
-                    self.train_writer.add_summary(summary, epoch * nbatches + i)
-            except tf.errors.OutOfRangeError:
-                break
+            # tensorboard
+            if i % 10 == 0:
+                self.train_writer.add_summary(summary, epoch * nbatches + i)
+                # except tf.errors.OutOfRangeError:
+                #     break
 
         summary, dev_acc = self.run_evaluate(sess, dev)
         self.dev_writer.add_summary(summary, epoch * nbatches + i)
@@ -135,50 +149,32 @@ class SiameseNet(object):
 
         return dev_acc
 
-    def run_evaluate(self, sess, test):
-        iterator = test.batch(self.config.batch_size).make_one_shot_iterator()
+    def run_evaluate(self, sess, data):
+        iterator = Data_iterator(data, self.config.batch_size)
+        nbatches = (iterator.max + self.config.batch_size - 1) // self.config.batch_size
+
         accuracy, cross = 0, 0
+        for i in range(nbatches):
+            q1, q2, l1, l2, y = iterator.__next__()
+            fd = {self.q1: q1, self.q2: q2, self.l1: l1, self.l2: l2, self.y: y,
+                  self.dropout: 0,
+                  self.lr: 0}
+            acc, ce = sess.run([self.accuracy, self.cross_entropy], feed_dict=fd)
 
-        q1, q2, l1, l2, y = iterator.get_next()
+            accuracy += acc * len(q1)
+            cross += ce * len(q1)
 
-        i = 1
-        while True:
-            try:
-                fd = {self.q1: q1.eval(), self.q2: q2.eval(), self.l1: l1.eval(), self.l2: l2.eval(), self.y: y.eval(),
-                      self.dropout: 0,
-                      self.lr: self.config.lr}
-                acc, ce = sess.run([self.accuracy, self.cross_entropy], feed_dict=fd)
+        accuracy /= iterator.max
+        cross /= iterator.max
 
-                accuracy += acc
-                cross += ce
-                i += 1
-            except tf.errors.OutOfRangeError:
-                break
+        summary = sess.run(self.merged_eval, feed_dict={self.acc_value: accuracy, self.ce_value: cross})
 
-        acc /= i
-        cross /= i
-
-        # TODO this is an approximation (rather good but still)
-
-        acc_value = tf.placeholder(tf.float64, shape=())
-        ce_value = tf.placeholder(tf.float64, shape=())
-        acc_summary = tf.summary.scalar('accuracy', acc_value)
-        ce_summary = tf.summary.scalar('cross_entropy', ce_value)
-        summary = sess.run(tf.summary.merge([acc_summary, ce_summary]),
-                           feed_dict={acc_value: acc, ce_value: cross})
-
-        return summary, acc
+        return summary, accuracy
 
     def train(self, train_data, dev_data, test_data):
 
         best_acc = 0
         nepoch_no_improv = 0
-
-        train = tf.contrib.data.Dataset.from_tensor_slices(train_data)
-        self.length_train = len(train_data[0])
-
-        dev = tf.contrib.data.Dataset.from_tensor_slices(dev_data)
-        test = tf.contrib.data.Dataset.from_tensor_slices(test_data)
 
         with tf.Session() as sess:
             self.train_writer = tf.summary.FileWriter(self.config.log_path + "train", sess.graph)
@@ -187,19 +183,20 @@ class SiameseNet(object):
 
             sess.run(self.init)
 
+            print("Training in {}".format(self.config.conf_dir))
             for epoch in range(self.config.n_epochs):
                 print("Epoch {}/{} :".format(epoch + 1, self.config.n_epochs))
-                dev_acc = self.run_epoch(sess, train, dev, test, epoch)
+                dev_acc = self.run_epoch(sess, train_data, dev_data, test_data, epoch)
 
                 self.config.lr *= self.config.lr_decay
 
-                if dev_acc > best_acc:
+                if dev_acc >= best_acc:
                     nepoch_no_improv = 0
-                    if not os.path.exists(self.config.models_path):
-                        os.makedirs(self.config.models_path)
-                    self.saver.save(sess, self.config.models_path)
+                    if not os.path.exists(self.config.model_path):
+                        os.makedirs(self.config.model_path)
+                    self.saver.save(sess, self.config.model_path)
                     best_acc = dev_acc
-                    print("New best score !")
+                    print("New best score on dev !")
 
                 else:
                     nepoch_no_improv += 1

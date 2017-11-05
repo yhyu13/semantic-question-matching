@@ -51,6 +51,25 @@ def sequence_dict(tok_dict, w2idx):
     return seq_dict
 
 
+class Data_iterator(object):
+    def __init__(self, data, batch=1):
+        self.q1, self.q2, self.l1, self.l2, self.y = data
+        self.batch = batch
+        self.i = 0
+        self.max = len(self.q1)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.i < self.max:
+            ranged = (self.i, min(self.i + self.batch, self.max))
+            self.i += self.batch
+            return self.q1[ranged[0]:ranged[1]], self.q2[ranged[0]:ranged[1]], self.l1[ranged[0]:ranged[1]],\
+                   self.l2[ranged[0]:ranged[1]], self.y[ranged[0]:ranged[1]]
+            raise StopIteration()
+
+
 class QuoraDataset(object):
     def __init__(self, filename, sep=',', w2idx=None, padlen=40, save_path=None):
         self.filename = filename
@@ -116,4 +135,3 @@ class QuoraDataset(object):
             return self.q1[:len], self.q2[:len], self.l1[:len], self.l2[:len], self.y[:len]
         else:
             return self.q1, self.q2, self.l1, self.l2, self.y
-
