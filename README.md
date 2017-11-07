@@ -25,20 +25,20 @@
 - Encoder module: bi-LSTMs vs. Self-Attention.
 - ~~Decoder module: LSTMs.~~
 - ~~AutoEncoder objective: -cross_entropy+kld.~~
-- ~~AutoDecoder objective: Duplicate case Ok~~/ Not duplicate cases under progress.
+- ~~AutoDecoder objective: Duplicate case Ok~~/ Not duplicate case under progress.
 - Results: Under progress for sent length <= 12.
 
 #### Siamese/Interactive Network
-- Encoder modules: bi-LSTMs vs. Self-Attention
-- Representation-based (Siamese Net): Concatenate sentence representations (concat(u,v),uv,|u-v|) + FFN w/ softmax module (0/1)
-- Interactive-based: Dense 3D tensor (u,v) + extract features (CNN) + FFN w/ softmax module (0/1)
+- Encoder modules: bi-LSTMs vs. Self-Attention.
+- Representation-based (Siamese Net): Concatenate sentence representations (concat(u,v),uv,|u-v|) + FFN w/ softmax module (0/1).
+- Interactive-based: Dense 3D tensor (u,v) + extract features (CNN) + FFN w/ softmax module (0/1).
 
 ### Tricks
-- Dropout and Batch Normalization
-- L1 Regularization
-- Inject noise in input space (corrupt input // SDAE)
-- Hyperparameter grid search
+- Dropout and Batch Normalization.
+- L1 Regularization.
+- Inject noise in input space (corrupt input // SDAE).
+- Hyperparameter grid search.
 
 
 ### Testing 
-- Cross Validation
+- Cross Validation.
