@@ -9,7 +9,7 @@
 - ~~Punctuation split ("good/bad" to ["good","/","bad"]).~~
 - Clean symbols, non-ASCII characters, urls, digits, snippets, formulas...
 - Spelling errors ?
-- Min count / Max frequency (dictionary)...
+- Min count / Max frequency (dictionary).
 - ~~Load Word Embeddings: Glove 300D init_ (pretrained on Wikipedia & GigaWord 5). ~~
 
 ### Baselines
@@ -37,6 +37,7 @@
 - Dropout and Batch Normalization
 - L1 Regularization
 - Inject noise in input space (corrupt input // SDAE)
+- Hyperparameter grid search
 
 
 ### Testing 
