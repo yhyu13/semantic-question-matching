@@ -103,7 +103,7 @@ with tf.Session() as sess:
 
         
 
-        if i%100 == 0:
+        if i%10 == 0:
             print('S: AutoEnc loss',np.mean(autoenc_s),'AutoDec loss',np.mean(autodec_s),' // A: AutoEnc loss',np.mean(autoenc_a),'AutoDec loss',np.mean(autodec_a))
 
     print("Testing COMPLETED !")

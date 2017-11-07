@@ -50,7 +50,7 @@ class Model(object):
         self.q2 = tf.placeholder(tf.int32, shape=[None, self.padlen], name="question2")
         self.len2 = tf.placeholder(tf.int32, shape=[None], name="question2_length")
         #y = tf.placeholder(tf.int64, shape=[None,2], name="is_duplicate")
-        self.flip = tf.placeholder(tf.float32, shape=[1], name="loss_flip")
+        #self.flip = tf.placeholder(tf.float32, shape=[1], name="loss_flip")
 
         self.autodecode()
         self.build_optim()
@@ -184,7 +184,8 @@ class Model(object):
                 tf.summary.scalar('kld_anneal',1.-self.lb)
 
                 # Objective
-                objective = self.flip[0]*self.loss + (1.-self.lb)*self.kld
+                #objective = self.flip[0]*self.loss + (1.-self.lb)*self.kld
+                objective = self.loss + (1.-self.lb)*self.kld
                 tf.summary.scalar('objective',objective)
 
                 fullvars = tf.trainable_variables()

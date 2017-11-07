@@ -40,7 +40,7 @@ train_arg.add_argument('--lb_decay_step', type=int, default=1000, help='kld anne
 train_arg.add_argument('--lb_decay_rate', type=float, default=0.999, help='kld annealing rate')
 
 train_arg.add_argument('--reformulate_proba', type=float, default=0.5, help='probability of reformulating. if 0, model = simple autoencoder') ##################################
-train_arg.add_argument('--freeze_w2v', type=str2bool, default=True, help='freeze word embeddings') #################################
+train_arg.add_argument('--freeze_w2v', type=str2bool, default=False, help='freeze word embeddings') #################################
 train_arg.add_argument('--n_sample', type=int, default=1, help='number of samples per instance')
 
 # Misc

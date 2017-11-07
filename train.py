@@ -79,20 +79,20 @@ with tf.Session() as sess:
 
                 # REFORMULATE
                 if r1 < config.reformulate_proba: # reformulate q1 -> q2
-                    if r0<0.5:
-                        # fetch duplicate questions
-                        input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xs_ids, Ys_ids, idx_batch, padlen=config.padlen)
-                        flip = [1.]
+                    #if r0<0.5:
+                    # fetch duplicate questions
+                    input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xs_ids, Ys_ids, idx_batch, padlen=config.padlen)
+                    #flip = [1.]
 
-                    else:
-                        # fetch not duplicate questions
-                        input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xa_ids, Ya_ids, idx_batch, padlen=config.padlen)
-                        flip = [-1.]
+                    #else:
+                    # fetch not duplicate questions
+                    #input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xa_ids, Ya_ids, idx_batch, padlen=config.padlen) #######################
+                    #flip = [-1.]                                                                                                                         #######################
 
                     if r2<0.5: # q1 -> q2
-                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: output_batch, model.len2: output_length, model.flip: flip}
+                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: output_batch, model.len2: output_length} #, model.flip: flip}
                     else: # q2 -> q1
-                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: input_batch, model.len2: input_length, model.flip: flip}
+                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: input_batch, model.len2: input_length} #, model.flip: flip}
 
 
                 # REPEAT
@@ -105,9 +105,9 @@ with tf.Session() as sess:
                         input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xa_ids, Ya_ids, idx_batch, padlen=config.padlen)
 
                     if r2<0.5: # q1 -> q1
-                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: input_batch, model.len2: input_length, model.flip: [1.]}
+                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: input_batch, model.len2: input_length} #, model.flip: [1.]}
                     else: # q2 -> q2
-                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: output_batch, model.len2: output_length, model.flip: [1.]}
+                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: output_batch, model.len2: output_length} #, model.flip: [1.]}
 
                 # Forward pass & train step
                 _, loss_, mu_, sigma_, kld_, lb_, summary, global_step_ = sess.run([optim, model.loss, model.mu, model.sigma, model.kld, model.lb, model.merged, model.global_step], feed_dict=feed)
@@ -116,7 +116,7 @@ with tf.Session() as sess:
                     if r1 >= config.reformulate_proba:
                         print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_,'VAE')
                     else:
-                        print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_,'VAD Flip',flip)
+                        print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_,'VAD')
                     writer.add_summary(summary, global_step_)
 
         # Save the variables to disk
