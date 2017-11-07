@@ -109,9 +109,15 @@ class Data_loader(object):
         return weights, word2idx, idx2word
 
 
-    def corpus2ids(self, w2v_size):
+    def corpus2ids(self, w2v_size, max_words):
 
-        if not os.path.exists('data/Xs_idx'+str(w2v_size)+'.npy'):
+        folder = 'data/'
+        if max_words==None:
+            saving_path = '_idx'+str(w2v_size)+'.npy'
+        else:
+            saving_path = '_idx'+str(w2v_size)+'d'+str(max_words)+'l.npy'
+
+        if not os.path.exists(folder+'Xs'+saving_path):
             weights, word2idx, idx2word = self.load_w2v(w2v_size)
             print('Creating w2v index based representation')
 
@@ -126,25 +132,33 @@ class Data_loader(object):
                 return np.asarray(sent_ids)
 
             Xs_ids, Ys_ids = {}, {}
-            for i,(q1,q2) in enumerate(zip(self.Xs, self.Ys)):
-                Xs_ids[i] = sent2ids(q1)
-                Ys_ids[i] = sent2ids(q2)
+            i = 0
+            for q1,q2 in zip(self.Xs, self.Ys):
+                q1, q2 = sent2ids(q1), sent2ids(q2)
+                if len(q1)<=max_words and len(q2)<=max_words:
+                    Xs_ids[i] = sent2ids(q1)
+                    Ys_ids[i] = sent2ids(q2)
+                    i+=1
 
             Xa_ids, Ya_ids = {}, {}
-            for i,(q1,q2) in enumerate(zip(self.Xa, self.Ya)):
-                Xa_ids[i] = sent2ids(q1)
-                Ya_ids[i] = sent2ids(q2)
+            i = 0
+            for q1,q2 in zip(self.Xa, self.Ya):
+                q1, q2 = sent2ids(q1), sent2ids(q2)
+                if len(q1)<=max_words and len(q2)<=max_words:
+                    Xa_ids[i] = sent2ids(q1)
+                    Ya_ids[i] = sent2ids(q2)
+                    i+=1
 
             # save
-            np.save('data/Xs_idx'+str(w2v_size)+'.npy',Xs_ids)
-            np.save('data/Ys_idx'+str(w2v_size)+'.npy',Ys_ids)
-            np.save('data/Xa_idx'+str(w2v_size)+'.npy',Xa_ids)
-            np.save('data/Ya_idx'+str(w2v_size)+'.npy',Ya_ids)
+            np.save(folder+'Xs'+saving_path,Xs_ids)
+            np.save(folder+'Ys'+saving_path,Ys_ids)
+            np.save(folder+'Xa'+saving_path,Xa_ids)
+            np.save(folder+'Ya'+saving_path,Ya_ids)
 
-        Xs_ids = np.load('data/Xs_idx'+str(w2v_size)+'.npy').item() # A question = a list of word_index
-        Ys_ids = np.load('data/Ys_idx'+str(w2v_size)+'.npy').item()
-        Xa_ids = np.load('data/Xa_idx'+str(w2v_size)+'.npy').item()
-        Ya_ids = np.load('data/Ya_idx'+str(w2v_size)+'.npy').item()
+        Xs_ids = np.load(folder+'Xs'+saving_path).item() # A question = a list of word_index
+        Ys_ids = np.load(folder+'Ys'+saving_path).item()
+        Xa_ids = np.load(folder+'Xa'+saving_path).item()
+        Ya_ids = np.load(folder+'Ya'+saving_path).item()
 
         return Xs_ids, Ys_ids, Xa_ids, Ya_ids
 

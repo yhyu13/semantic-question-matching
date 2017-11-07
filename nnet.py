@@ -34,7 +34,7 @@ class Model(object):
         self.initializer = tf.contrib.layers.xavier_initializer() # variables initializer
 
         # Training config
-        self.global_step = tf.Variable(0, trainable=False) # global step
+        self.global_step = tf.Variable(0, trainable=False, name='global_step') # global step
         self.n_sample = config.n_sample # MC approx
         self.lr_start = config.lr_start # initial learning rate
         self.lr_decay_rate=config.lr_decay_rate # learning rate decay rate
@@ -50,6 +50,7 @@ class Model(object):
         self.q2 = tf.placeholder(tf.int32, shape=[None, self.padlen], name="question2")
         self.len2 = tf.placeholder(tf.int32, shape=[None], name="question2_length")
         #y = tf.placeholder(tf.int64, shape=[None,2], name="is_duplicate")
+        self.flip = tf.placeholder(tf.float32, shape=[1], name="loss_flip")
 
         self.autodecode()
         self.build_optim()
@@ -77,14 +78,14 @@ class Model(object):
             
             mean = utils.linear(encoded_state, self.hidden_size, scope='mean') # [batch size, n_hidden]
             logsigm = utils.linear(encoded_state, self.hidden_size, scope='logsigm')
-            self.mu = tf.sqrt(tf.reduce_mean(tf.square(tf.reduce_mean(mean,0)))) # L2 norm of mean intents
+            self.mu = tf.sqrt(tf.reduce_mean(tf.square(tf.reduce_mean(mean,0)))) # L2 norm of mean intents (divided by dimension d)
             tf.summary.scalar('mu',self.mu)
             self.sigma = tf.reduce_mean(tf.exp(logsigm)) # mean standard deviation in any direction
             tf.summary.scalar('sigma',self.sigma)
             #self.kld = -0.5 * tf.reduce_mean(1 - tf.square(mean) + 2 * logsigm - tf.exp(2 * logsigm), 1) # [batch size]
             #variable_summaries('kld',self.kld)
             #self.kld = tf.reduce_mean(self.kld)
-            self.kld = -0.5 * tf.reduce_mean(1 - tf.square(mean) + 2 * logsigm - tf.exp(2 * logsigm)) # scalar ############################ Check formula (mean vs. sum)
+            self.kld = -0.5 * tf.reduce_mean(1 - tf.square(mean) + 2*logsigm - tf.exp(2*logsigm)) # scalar ############################ Check formula (mean vs. sum)  -0.5*(2*logsigma -exp(logsigma)**2 -mu**2 +1)
             tf.summary.scalar('kld',self.kld)
 
             if self.n_sample ==1:  # single sample
@@ -172,18 +173,18 @@ class Model(object):
             with tf.variable_scope('opt'):
 
                 # learning rate
-                lr = tf.train.natural_exp_decay(learning_rate=self.lr_start, global_step=self.global_step, decay_steps=self.lr_decay_step, decay_rate=self.lr_decay_rate, staircase=True, name="learning_rate1")
+                lr = tf.train.natural_exp_decay(learning_rate=self.lr_start, global_step=self.global_step, decay_steps=self.lr_decay_step, decay_rate=self.lr_decay_rate, staircase=False, name="learning_rate1")
                 tf.summary.scalar('lr',lr)
 
                 # Optimizer
                 opt = tf.train.AdamOptimizer(learning_rate=lr,beta1=0.9,beta2=0.99, epsilon=0.0000001)
 
                 # Kld cost annealing
-                self.lb = tf.train.natural_exp_decay(learning_rate=1., global_step=self.global_step, decay_steps=self.lb_decay_step, decay_rate=self.lb_decay_rate, staircase=True, name="kld_weight")
+                self.lb = tf.train.natural_exp_decay(learning_rate=1., global_step=self.global_step, decay_steps=self.lb_decay_step, decay_rate=self.lb_decay_rate, staircase=False, name="kld_weight")
                 tf.summary.scalar('kld_anneal',1.-self.lb)
 
                 # Objective
-                objective = self.loss + (1.-self.lb)*self.kld
+                objective = self.flip[0]*self.loss + (1.-self.lb)*self.kld
                 tf.summary.scalar('objective',objective)
 
                 fullvars = tf.trainable_variables()

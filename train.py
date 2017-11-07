@@ -9,19 +9,8 @@ from data_loader import Data_loader
 from nnet import Model
 
 
-###################### CHECK formula: objective = self.loss + self.kld      w/ self.loss =... and self.kld =...
-########### ANNEAL kld weight
-
-########### Alternate encoder / decoder training
-########### Unknown words (***)
-########### Freeze W2V embeddings
-
-########### W2V / Sent dimensions (50, 100, 200, 300)
-########### VarAutoEnc (reformulate_proba=0) to VarAutoDec (reformulate_proba=1)
-
 ###################### USE DYNAMIC RNN DECODER WITH LEN2-1
 ###################### Use Xs, Ys AND Xa, Ya !!! (self.y = [batch size,] = +-1)
-
 
 
 
@@ -30,13 +19,13 @@ config, _ = get_config()
 print_config()
 
 # reproducibility
-np.random.seed(0)
-tf.set_random_seed(0)
+np.random.seed(57)
+tf.set_random_seed(57)
 
 # Init data_loader
 data_loader = Data_loader()
 weights, word2idx, idx2word = data_loader.load_w2v(w2v_size=config.w2v_size)
-Xs_ids, Ys_ids, Xa_ids, Ya_ids = data_loader.corpus2ids(w2v_size=config.w2v_size)
+Xs_ids, Ys_ids, Xa_ids, Ya_ids = data_loader.corpus2ids(w2v_size=config.w2v_size, max_words=config.maxlen)
 
 # Build tensorflow graph from config
 print("Building graph...")
@@ -45,7 +34,7 @@ model = Model(embedding_weights=weights, config=config)
 
 
 # Saver to save & restore all the variables.
-variables_to_save = [v for v in tf.global_variables() if 'Adam' not in v.name]
+variables_to_save = [v for v in tf.global_variables() if 'Adam' not in v.name and 'global_step' not in v.name]
 saver = tf.train.Saver(var_list=variables_to_save, keep_checkpoint_every_n_hours=1.0)  
 
 print("Starting session...")
@@ -70,6 +59,7 @@ with tf.Session() as sess:
     print("Starting training...")
 
     num_batch_per_epoch = int(len(Xs_ids)/config.batch_size)
+    print(len(Xs_ids),'question pairs','(',num_batch_per_epoch,' batch / epoch)')
     for epoch in range(config.training_epochs):
         # Random batch indices
         batches = data_loader.create_batches(len(Xs_ids), batch_size=config.batch_size)
@@ -83,31 +73,50 @@ with tf.Session() as sess:
         for optim in switchs: 
             # train
             for i, idx_batch in tqdm(enumerate(batches)):
-                # fetch duplicate questions
-                input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xs_ids, Ys_ids, idx_batch, padlen=config.padlen)
 
                 # choose i and f iid in {0,1}. random task: qi -> qf or qf -> qi.
-                r1, r2 = np.random.rand(1), np.random.rand(1) # two iid rrv
+                r0, r1, r2 =  np.random.rand(1), np.random.rand(1), np.random.rand(1) # 2 iid rrv
 
                 # REFORMULATE
                 if r1 < config.reformulate_proba: # reformulate q1 -> q2
-                    if r2<0.5:
-                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: output_batch, model.len2: output_length}
+                    if r0<0.5:
+                        # fetch duplicate questions
+                        input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xs_ids, Ys_ids, idx_batch, padlen=config.padlen)
+                        flip = [1.]
+
                     else:
-                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: input_batch, model.len2: input_length}
+                        # fetch not duplicate questions
+                        input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xa_ids, Ya_ids, idx_batch, padlen=config.padlen)
+                        flip = [-1.]
+
+                    if r2<0.5: # q1 -> q2
+                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: output_batch, model.len2: output_length, model.flip: flip}
+                    else: # q2 -> q1
+                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: input_batch, model.len2: input_length, model.flip: flip}
+
 
                 # REPEAT
-                else: # repeat q1 -> q2
-                    if r2<0.5:
-                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: input_batch, model.len2: input_length}
+                else: # repeat qi -> qi
+                    if r0<0.5:
+                        # fetch duplicate questions
+                        input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xs_ids, Ys_ids, idx_batch, padlen=config.padlen)
                     else:
-                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: output_batch, model.len2: output_length}
+                        # fetch not duplicate questions
+                        input_batch, input_length, output_batch, output_length = data_loader.fetch_data_ids(Xa_ids, Ya_ids, idx_batch, padlen=config.padlen)
+
+                    if r2<0.5: # q1 -> q1
+                        feed = {model.q1: input_batch, model.len1: input_length, model.q2: input_batch, model.len2: input_length, model.flip: [1.]}
+                    else: # q2 -> q2
+                        feed = {model.q1: output_batch, model.len1: output_length, model.q2: output_batch, model.len2: output_length, model.flip: [1.]}
 
                 # Forward pass & train step
                 _, loss_, mu_, sigma_, kld_, lb_, summary, global_step_ = sess.run([optim, model.loss, model.mu, model.sigma, model.kld, model.lb, model.merged, model.global_step], feed_dict=feed)
 
                 if i%100 == 0:
-                    print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_)
+                    if r1 >= config.reformulate_proba:
+                        print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_,'VAE')
+                    else:
+                        print(' Step:',global_step_,'loss=',loss_,'kld=',kld_,'anneal=',1.-lb_,'std=', sigma_, '|mu|2=',mu_,'VAD Flip',flip)
                     writer.add_summary(summary, global_step_)
 
         # Save the variables to disk
