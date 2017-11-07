@@ -10,7 +10,7 @@
 - Clean symbols, non-ASCII characters, urls, digits, snippets, formulas...
 - Spelling errors ?
 - Min count / Max frequency (dictionary).
-- ~~Load Word Embeddings: Glove 300D init_ (pretrained on Wikipedia & GigaWord 5). ~~
+- ~~Load Word Embeddings: Glove 300D init_ (pretrained on Wikipedia & GigaWord 5).~~
 
 ### Baselines
 - ~~WMD: Unseparable.~~ (starting_kit.py)
