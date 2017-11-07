@@ -24,8 +24,8 @@
 #### Sequential Variational AutoEncoders
 - Encoder module: bi-LSTMs vs. Self-Attention.
 - ~~Decoder module: LSTMs.~~
-- ~~AutoEncoder objective: -cross_entropy+kld. ~~
-- ~~AutoDecoder objective: Duplicate case Ok ~~/ Not duplicate cases under progress.
+- ~~AutoEncoder objective: -cross_entropy+kld.~~
+- ~~AutoDecoder objective: Duplicate case Ok~~/ Not duplicate cases under progress.
 - Results: Under progress for sent length <= 12.
 
 #### Siamese/Interactive Network
