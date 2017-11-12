@@ -51,7 +51,7 @@ def sequence_dict(tok_dict, w2idx):
     return seq_dict
 
 
-class Data_iterator(object):
+class DataIterator(object):
     def __init__(self, data, batch=1):
         self.q1, self.q2, self.l1, self.l2, self.y = data
         self.batch = batch
@@ -102,14 +102,14 @@ class QuoraDataset(object):
         self.q_dict = {}
 
         for _, row in self.df.iterrows():
-            i, qid1 = row["id"], row["qid1"]
+            i, qid1, q1 = row["id"], row["qid1"], row["question1"]
             if qid1 not in self.q_dict:
-                self.q_dict[qid1] = check_str(self.df["question1"][self.df["id"] == i])
+                self.q_dict[qid1] = check_str(q1)
 
         for _, row in self.df.iterrows():
-            i, qid2 = row["id"], row["qid2"]
+            i, qid2, q2 = row["id"], row["qid2"], row["question2"]
             if qid2 not in self.q_dict:
-                self.q_dict[qid2] = check_str(self.df["question2"][self.df["id"] == i])
+                self.q_dict[qid2] = check_str(q2)
 
         print("Tokenizing questions...")
         self.tok_dict = tokenize_dict(self.q_dict)

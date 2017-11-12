@@ -31,22 +31,24 @@ class Config():
     # TODO saving and quick reloading of dicts and formatted embeddings ???
 
     # training
-    train_embeddings = True
+    train_embeddings = False
     n_epochs = 10
-    dropout = 0.2
+    dropout = 0.
     batch_size = 64
     lr_method = "adam"
-    fd_activation = "relu"
-    lr = 0.01
+    fd_activation = "tanh"
+    lr = 0.001
     lr_decay = 0.9
+    lr_divide = 1
     reload = False
     nepochs_no_improv = 3
 
     # hyperparameters
     hidden_size = 256
 
-    conf_dir = "hid-{}_lr-{}-{}_bs-{}_drop-{}_tremb-{}_nep-{}/".format(hidden_size, lr_method, lr, batch_size,
-                                                                       dropout, int(train_embeddings), n_epochs)
+    conf_dir = "hid-{}_lr-{}-{}-{}_bs-{}_drop-{}_tremb-{}_nep-{}/".format(hidden_size, lr_method, lr, fd_activation,
+                                                                          batch_size, dropout, int(train_embeddings),
+                                                                          n_epochs)
 
     # general config
     output_path = "results/" + conf_dir
