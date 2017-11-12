@@ -169,6 +169,7 @@ class SiameseNet(object):
             if i % test_step == 0:
                 summary, dev_acc = self.run_evaluate(sess, dev)
                 self.dev_writer.add_summary(summary, epoch * nbatches + i)
+                print("Step {}/{}".format(i, nbatches))
                 print("dev acc {:04.2f}".format(100 * dev_acc))
 
                 summary, test_acc = self.run_evaluate(sess, test)

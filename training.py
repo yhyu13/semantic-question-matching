@@ -59,7 +59,7 @@ class Config():
     reload = False
 
     # hyperparameters
-    hidden_size = args.hidden_size
+    hidden_size = args.hidden
 
     conf_dir = "hid-{}_lr-{}-{}-{}_bs-{}_drop-{}_tremb-{}_nep-{}/".format(hidden_size, lr_method, lr, fd_activation,
                                                                           batch_size, dropout, int(train_embeddings),
