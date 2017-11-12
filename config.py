@@ -1,12 +1,4 @@
 import os
-import pandas as pd
-
-
-def split_train_test(filename, output_train, output_test, test_prop, sep=','):
-    df = pd.read_csv(filename, sep=sep)
-    test_size = int(len(df) * test_prop)
-    df[:-test_size].to_csv(output_train, index_label=False)
-    df[-test_size:].to_csv(output_test, index_label=False)
 
 
 class Config():
@@ -54,7 +46,3 @@ class Config():
     output_path = "results/" + conf_dir
     model_path = output_path + "model/"
     log_path = output_path + "logs/"
-
-
-if __name__ == "__main__":
-    split_train_test("data/quora_duplicate_questions.tsv", "data/train.csv", "data/test.csv", 0.2, sep="\t")
