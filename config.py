@@ -27,8 +27,10 @@ class Config():
     n_epochs = 10
     dropout = 0.
     batch_size = 64
+    batch_norm = True
     lr_method = "adam"
-    fd_activation = "tanh"
+    fc_activation = "relu"
+    feats = "dist"
     lr = 0.001
     lr_decay = 0.9
     lr_divide = 1
@@ -38,9 +40,14 @@ class Config():
     # hyperparameters
     hidden_size = 256
 
-    conf_dir = "hid-{}_lr-{}-{}-{}_bs-{}_drop-{}_tremb-{}_nep-{}/".format(hidden_size, lr_method, lr, fd_activation,
-                                                                          batch_size, dropout, int(train_embeddings),
-                                                                          n_epochs)
+    assert lr_method in ["adam", "sgd"]
+    assert fc_activation in ["relu", "tanh", "sigmoid"]
+    assert feats in ["raw", "dist", "all"]
+
+    conf_dir = "hid-{}_feats-{}_lr-{}-{}-{}_bs-{}_drop-{}_bn-{}_emb-{}/".format(hidden_size, feats, lr_method, lr,
+                                                                                fc_activation, batch_size, dropout,
+                                                                                int(batch_norm),
+                                                                                int(train_embeddings))
 
     # general config
     output_path = "results/" + conf_dir

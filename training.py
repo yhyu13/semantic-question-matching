@@ -14,6 +14,8 @@ parser.add_argument("-bs", "--batch_size", type=int, help="batch size", default=
 parser.add_argument("-lr", "--learning_rate", type=float, help="learning rate", default=1e-3)
 parser.add_argument("-lrd", "--lr_decay", type=float, help="learning rate decay", default=0.9)
 parser.add_argument("-opt", "--optimizer", help="optimizer", default="adam")
+parser.add_argument("-bn", "--batch_norm", type=int, help="batch norm", default=1)
+parser.add_argument("-f", "--feats", help="features", default="all")
 parser.add_argument("-hid", "--hidden", type=int, help="dimension of lstm hidden layer", default=256)
 parser.add_argument("-w2v", "--w2v_dim", type=int, help="dimension of pretrained word embeddings", default=300)
 parser.add_argument("-d", "--dropout", type=float, help="dropout", default=0.)
@@ -49,8 +51,10 @@ class Config():
     n_epochs = args.epochs
     dropout = args.dropout
     batch_size = args.batch_size
+    batch_norm = args.batch_norm
     lr_method = args.optimizer
-    fd_activation = args.activation
+    feats = args.feats
+    fc_activation = args.activation
     lr = args.learning_rate
     lr_decay = args.lr_decay
     nepochs_no_improv = args.early_stopping
@@ -61,9 +65,14 @@ class Config():
     # hyperparameters
     hidden_size = args.hidden
 
-    conf_dir = "hid-{}_lr-{}-{}-{}_bs-{}_drop-{}_tremb-{}_nep-{}/".format(hidden_size, lr_method, lr, fd_activation,
-                                                                          batch_size, dropout, int(train_embeddings),
-                                                                          n_epochs)
+    assert lr_method in ["adam", "sgd"]
+    assert fc_activation in ["relu", "tanh", "sigmoid"]
+    assert feats in ["raw", "dist", "all"]
+
+    conf_dir = "hid-{}_feats-{}_lr-{}-{}-{}_bs-{}_drop-{}_bn-{}_emb-{}/".format(hidden_size, feats, lr_method, lr,
+                                                                                fc_activation, batch_size, dropout,
+                                                                                int(batch_norm),
+                                                                                int(train_embeddings))
 
     # general config
     output_path = "results/" + conf_dir

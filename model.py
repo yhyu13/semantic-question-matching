@@ -25,12 +25,12 @@ class SiameseNet(object):
         return output
 
     def activation(self, x):
-        assert self.config.fd_activation in ["sigmoid", "relu", "tanh"]
-        if self.config.fd_activation == "sigmoid":
+        assert self.config.fc_activation in ["sigmoid", "relu", "tanh"]
+        if self.config.fc_activation == "sigmoid":
             return tf.nn.sigmoid(x)
-        elif self.config.fd_activation == "relu":
+        elif self.config.fc_activation == "relu":
             return tf.nn.relu(x)
-        elif self.config.fd_activation == "tanh":
+        elif self.config.fc_activation == "tanh":
             return tf.nn.tanh(x)
 
     def build(self):
@@ -53,8 +53,8 @@ class SiameseNet(object):
             we1 = tf.nn.embedding_lookup(_word_embeddings, self.q1, name="q1_embedded")
             we2 = tf.nn.embedding_lookup(_word_embeddings, self.q2, name="q2_embedded")
 
-            we1 = tf.nn.dropout(we1, keep_prob=1-self.dropout)
-            we2 = tf.nn.dropout(we2, keep_prob=1-self.dropout)
+            we1 = tf.nn.dropout(we1, keep_prob=1 - self.dropout)
+            we2 = tf.nn.dropout(we2, keep_prob=1 - self.dropout)
 
         ### Shared layer
         with tf.variable_scope("bilstm") as scope:
@@ -66,11 +66,7 @@ class SiameseNet(object):
         #     lstm1 = self.lstm(we1, self.l1)
         #     scope.reuse_variables()
         #     lstm2 = self.lstm(we2, self.l2)
-        #
-        # with tf.variable_scope("lstm") as scope:
-        #     lstm1 = we1
-        #     scope.reuse_variables()
-        #     lstm2 = we2
+
 
         ### Max pooling
         lstm1_pool = max_pool(lstm1)
@@ -81,9 +77,13 @@ class SiameseNet(object):
         flat2 = tf.contrib.layers.flatten(lstm2_pool)
         mult = tf.multiply(flat1, flat2)
         diff = tf.abs(tf.subtract(flat1, flat2))
-        # concat = tf.concat([flat1, flat2, mult, diff], axis=-1)
-        concat = tf.concat([mult, diff], axis=-1)
 
+        if self.config.feats == "raw":
+            concat = tf.concat([flat1, flat2], axis=-1)
+        elif self.config.feats == "dist":
+            concat = tf.concat([mult, diff], axis=-1)
+        elif self.config.feats == "all":
+            concat = tf.concat([flat1, flat2, mult, diff], axis=-1)
 
         ### FC layers
         concat_size = int(concat.get_shape()[1])
@@ -94,21 +94,32 @@ class SiameseNet(object):
             W1 = tf.Variable(tf.random_normal([concat_size, intermediary_size], stddev=1e-3), name="w_fc")
             b1 = tf.Variable(tf.zeros([intermediary_size]), name="b_fc")
 
-            preact1 = tf.matmul(concat, W1) + b1
-            fc1 = self.activation(preact1)
+            z1 = tf.matmul(concat, W1) + b1
+
+            if self.config.batch_norm:
+                epsilon = 1e-3
+                batch_mean1, batch_var1 = tf.nn.moments(z1, [0])
+                scale1, beta1 = tf.Variable(tf.ones([intermediary_size])), tf.Variable(tf.zeros([intermediary_size]))
+                z1 = tf.nn.batch_normalization(z1, batch_mean1, batch_var1, beta1, scale1, epsilon)
+
+            fc1 = tf.nn.dropout(self.activation(z1), keep_prob=1 - self.dropout)
             tf.summary.histogram('fc1', fc1)
             tf.summary.histogram('W1', W1)
             tf.summary.histogram('b1', b1)
-
 
         with tf.variable_scope("fc2") as scope:
             W2 = tf.Variable(tf.random_normal([intermediary_size, 2], stddev=1e-3), name="w_fc")
             b2 = tf.Variable(tf.zeros([2]), name="b_fc")
 
-            preact2 = tf.matmul(fc1, W2) + b2
-            # self.fc2 = self.activation(preact2)
-            self.fc2 = preact2
+            z2 = tf.matmul(fc1, W2) + b2
 
+            if self.config.batch_norm:
+                epsilon = 1e-3
+                batch_mean2, batch_var2 = tf.nn.moments(z2, [0])
+                scale2, beta2 = tf.Variable(tf.ones([2])), tf.Variable(tf.zeros([2]))
+                z2 = tf.nn.batch_normalization(z2, batch_mean2, batch_var2, beta2, scale2, epsilon)
+
+            self.fc2 = z2
             tf.summary.histogram('fc2', self.fc2)
             tf.summary.histogram('W2', W2)
             tf.summary.histogram('b2', b2)
@@ -155,12 +166,13 @@ class SiameseNet(object):
         nbatches = (iterator.max + self.config.batch_size - 1) // self.config.batch_size
         dev_acc = 0
 
+        accuracy, cross = 0, 0
         for i in tqdm(range(nbatches)):
             q1, q2, l1, l2, y = iterator.__next__()
             fd = {self.q1: q1, self.q2: q2, self.l1: l1, self.l2: l2, self.y: y,
                   self.dropout: self.config.dropout,
                   self.lr: lr}
-            _, summary, acc = sess.run([self.train_step, self.merged, self.accuracy], feed_dict=fd)
+            _, summary = sess.run([self.train_step, self.merged], feed_dict=fd)
 
             # tensorboard
             if i % 10 == 0:
